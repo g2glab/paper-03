@@ -203,7 +203,7 @@ Furthermore, we have implemented command-line tools to convert between PG and JS
 \end{figure}
 
 
-\section{Mapping RDF graphs to Property Graphs}
+\section{Mapping RDF Graphs to Property Graphs}
 
 Here, we developed a framework for mapping RDF to property graphs.
 Figure~\ref{fig:dataflow} shows the overview of proposed framework.
@@ -211,7 +211,7 @@ In the proposed framework, users write mappings from RDF graphs to property grap
 This mapping can be processed by an implementation called \textit{G2G Mapper}, which is implemented by authors (available on \url{https://github.com/g2gml}). This tool retrieves RDF data from SPARQL endpoints and converts them to property graph data in several different formats specified by popular graph databases.
 
 G2GML is a declarative language which consists of pairs of RDF graph patterns and property graph patterns. 
-An intuitive meaning of a G2GML is a mapping between RDF subgraphs that matches the described patterns and described components of the property graph. In the next section, we briefly explain the syntax of G2GML with a concrete example usage.
+An intuitive meaning of a G2GML is a mapping between RDF subgraphs that matches the described patterns and described components of the property graph. In this section, we briefly explain the syntax of G2GML with a concrete example usage.
 
 \begin{figure}
 \center
@@ -233,32 +233,29 @@ Figure~\ref{fig:conversion} shows an example of G2GML mapping, which converts RD
 
 For this conversion, the actual G2GML is described as in Figure~\ref{fig:g2gml}. It starts with URI prefixes used to write mappings, and then, each mapping consists of one unindented line of a property graph pattern and indented lines of an RDF graph pattern. A property graph pattern is written in a syntax like Cypher (the query language of Neo4j), whereas an RDF graph pattern is written as a pattern in SPARQL. Variables in each pattern are mapped by those names. This example contains one node mapping for \texttt{Musician} entity and one edge mapping for \texttt{same\_group} relationship only. In G2GML, edge mappings are defined based on the conditions of node mappings, which means that edges are generated in property graph iff both nodes' patterns and edges' patterns are matched in RDF graph. Also, \texttt{mus, nam, dat, twn} and \texttt{len} are used as variables to extract resources and literals from RDF graph. In the resulting property graph, resources can be mapped to nodes, while literals can be mapped to values of properties.
 
+%# Prefixes
 \begin{figure}[!t]
 \vspace{2mm}
 \begin{scriptsize}
 \begin{verbatim}
-# Prefixes
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX prop: <http://dbpedia.org/property/>
 PREFIX schema: <http://schema.org/>
-PREFIX dbpedia-owl: <http://dbpedia.org/ontology/>
+PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
 # Node mapping
-(mus:Musician {vis_label:nam, born:dat, hometown:twn})                    # PG Pattern
-    ?mus rdf:type foaf:Person, dbpedia-owl:MusicalArtist .                # RDF Pattern
-    ?mus rdfs:label ?nam .
-    OPTIONAL { ?mus prop:born ?dat }
-    OPTIONAL { ?mus dbpedia-owl:hometown / rdfs:label ?twn }
+(m:Musician {name:n, hometown:h})                            # PG Pattern
+    ?m rdf:type foaf:Person , dbo:MusicalArtist .            # RDF Pattern
+    ?m rdfs:label ?n . FILTER(lang(?n) = "en") .
+    OPTIONAL { ?m dbo:hometown / rdfs:label ?h . FILTER(lang(?h) = "en") }
 
 # Edge mapping
-(mus1:Musician)-[:same_group {label:nam, length:len}]->(mus2:Musician)    # PG Pattern
-    ?grp a schema:MusicGroup ;                                            # RDF Pattern
-         dbpedia-owl:bandMember ?mus1 , ?mus2 .
-    FILTER(?mus1 != ?mus2)
-    OPTIONAL { ?grp rdfs:label ?nam. FILTER(lang(?nam) = "ja")}
-    OPTIONAL { ?grp dbpedia-owl:wikiPageLength ?len }
+(m1:Musician)-[:same_group {name:n, since:s}]-(m2:Musician)  # PG Pattern
+    ?g rdf:type schema:MusicGroup ;                          # RDF Pattern
+       dbo:bandMember ?m1 , ?m2 . FILTER(?m1 != ?m2)
+    OPTIONAL { ?g rdfs:label ?n . FILTER(lang(?n) = "en")}
+    OPTIONAL { ?g dbo:activeYearsStartYear ?s }
 \end{verbatim}
 \end{scriptsize}
 \caption{Example of G2GML}
@@ -275,21 +272,22 @@ Finally, Figure~\ref{fig:sparql} shows the SPARQL query to retrieve the pairs of
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX schema: <http://schema.org/>
-PREFIX dbpedia-owl: <http://dbpedia.org/ontology/>
-SELECT DISTINCT
-    ?nam1 ?nam2
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+SELECT DISTINCT ?nam1 ?nam2
 WHERE {
-    ?mus1 rdf:type foaf:Person , dbpedia-owl:MusicalArtist .
-    ?mus2 rdf:type foaf:Person , dbpedia-owl:MusicalArtist .
+    ?mus1 rdf:type foaf:Person , dbo:MusicalArtist .
+    ?mus2 rdf:type foaf:Person , dbo:MusicalArtist .
     ?mus1 rdfs:label ?nam1 . FILTER(lang(?nam1) = "ja") .
     ?mus1 rdfs:label ?nam2 . FILTER(lang(?nam2) = "ja") .
     ?grp a schema:MusicGroup ;
-         dbpedia-owl:bandMember ?mus1 , ?mus2 .
+         dbo:bandMember ?mus1 , ?mus2 .
     FILTER(?mus1 != ?mus2)
 }
 
 # PGQL
-SELECT DISTINCT m1.name, m2.name WHERE (m1)-[same_group]-(m2)
+SELECT DISTINCT m1.name, m2.name WHERE (m1)-[:same_group]-(m2)
 \end{verbatim}
 \end{scriptsize}
 \caption{Example of SPARQL and PGQL queries}
